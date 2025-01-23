@@ -1,0 +1,8 @@
+---
+applications:
+- name: redis-starter-java
+  memory: 256M
+  instances: 1
+  host: redis-starter-java
+  domain: guides.spring.io
+  path: build/libs/redis-starter-java-0.1.0.jar
