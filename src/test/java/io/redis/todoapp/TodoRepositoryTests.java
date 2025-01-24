@@ -18,6 +18,7 @@ package io.redis.todoapp;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -101,7 +102,7 @@ public class TodoRepositoryTests {
 		);
 
 		for (var todo: todos) {
-			repository.create(new CreateTodoDto(todo));
+			assertDoesNotThrow(() -> repository.create(new CreateTodoDto(todo)));
 		}
 
 		var allTodos = repository.all();

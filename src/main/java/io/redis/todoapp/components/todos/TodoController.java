@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.redis.todoapp.components.todos.models.CreateTodoDto;
+import io.redis.todoapp.components.todos.models.InvalidTodoException;
+import io.redis.todoapp.components.todos.models.TodoNotFoundException;
 import io.redis.todoapp.components.todos.models.UpdateTodoDto;
 
 @RestController
@@ -68,7 +70,13 @@ public class TodoController {
     @GetMapping("/{id}")
     public ResponseEntity<?> one(@PathVariable String id) {
         logger.info(String.format("GET /api/todos/%s", id));
-        return new ResponseEntity<>(repository.one(id), HttpStatus.OK);
+        try {
+            var todo = repository.one(id);
+
+            return new ResponseEntity<>(todo, HttpStatus.OK);
+        } catch (TodoNotFoundException e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+        }
     }
 
     @GetMapping("/{id}/")
@@ -79,7 +87,11 @@ public class TodoController {
     @PostMapping("")
     public ResponseEntity<?> create(@RequestBody CreateTodoDto todo) {
         logger.info(String.format("POST /api/todos/ (%s)", todo));
-        return new ResponseEntity<>(repository.create(todo), HttpStatus.OK);
+        try {
+            return new ResponseEntity<>(repository.create(todo), HttpStatus.OK);
+        } catch (InvalidTodoException e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
     }
 
     @PostMapping("/")
@@ -90,7 +102,13 @@ public class TodoController {
     @PatchMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable String id, @RequestBody UpdateTodoDto todo) {
         logger.info(String.format("PATCH /api/todos/%s (%s)", id, todo));
-        return new ResponseEntity<>(repository.update(id, todo), HttpStatus.OK);
+        try {
+            return new ResponseEntity<>(repository.update(id, todo), HttpStatus.OK);
+        } catch (TodoNotFoundException e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+        } catch (InvalidTodoException e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
     }
 
     @PatchMapping("/{id}/")

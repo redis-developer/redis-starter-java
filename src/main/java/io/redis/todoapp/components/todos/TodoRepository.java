@@ -13,9 +13,11 @@ import org.springframework.stereotype.Repository;
 import com.google.gson.Gson;
 
 import io.redis.todoapp.components.todos.models.CreateTodoDto;
+import io.redis.todoapp.components.todos.models.InvalidTodoException;
 import io.redis.todoapp.components.todos.models.Todo;
 import io.redis.todoapp.components.todos.models.TodoDocument;
 import io.redis.todoapp.components.todos.models.TodoDocuments;
+import io.redis.todoapp.components.todos.models.TodoNotFoundException;
 import io.redis.todoapp.components.todos.models.UpdateTodoDto;
 import jakarta.annotation.PostConstruct;
 import redis.clients.jedis.UnifiedJedis;
@@ -121,47 +123,56 @@ public class TodoRepository {
         return toTodoDocuments(result);
     }
 
-    public TodoDocument create(CreateTodoDto todoDto) {
+    public TodoDocument create(CreateTodoDto todoDto) throws InvalidTodoException {
         todoDto.setId(formatId(todoDto.getId()));
         var todoDocument = todoDto.toTodoDocument();
         var ok = redis.jsonSet(todoDocument.getId(), gson.toJson(todoDocument.getValue()));
 
         logger.debug(String.format("jsonSet(%s, %s) == %s", todoDocument.getId(), todoDocument.getValue(), ok));
 
-        if (ok.equals("ok")) {
+        if (ok.toLowerCase().equals("ok")) {
             logger.debug(String.format("Todo created: %s", todoDocument));
             return todoDocument;
         }
 
-        return todoDocument;
+        throw new InvalidTodoException("failed to create todo");
     }
 
-    public Todo update(String id, UpdateTodoDto todoDto) {
+    public Todo one(String id) throws TodoNotFoundException {
+        var result = redis.jsonGet(formatId(id));
+
+        if (result == null) {
+            throw new TodoNotFoundException(id);
+        }
+
+        return jsonToTodo(result);
+    }
+
+    public Todo update(String id, UpdateTodoDto todoDto) throws TodoNotFoundException, InvalidTodoException {
         var status = todoDto.getStatus();
         switch (status) {
             case "todo", "in progress", "complete" -> {
             }
-            default -> throw new AssertionError(String.format("invalid status %s", status));
+            default -> throw new InvalidTodoException(String.format("invalid status \"%s\"", status));
         }
 
         id = formatId(id);
         var todo = one(id);
+    
+        if (todo == null) {
+            throw new TodoNotFoundException(id);
+        }
+
         todo.setStatus(status);
         todo.setUpdatedDate(Instant.now());
         var ok = redis.jsonSet(id, gson.toJson(todo));
     
-        if (ok.equals("ok")) {
+        if (ok.toLowerCase().equals("ok")) {
             logger.debug(String.format("Todo updated: %s", todo));
             return todo;
         }
 
-        return todo;
-    }
-
-    public Todo one(String id) {
-        var result = redis.jsonGet(formatId(id));
-
-        return jsonToTodo(result);
+        throw new InvalidTodoException(String.format("failed to update todo \"%s\"", id));
     }
 
     public void delete(String id) {

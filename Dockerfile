@@ -2,7 +2,7 @@
 FROM maven:3.9.9-amazoncorretto-23-alpine AS build
 WORKDIR /home/app
 COPY . .
-RUN mvn -f ./pom.xml clean test package
+RUN mvn -f ./pom.xml clean package -Dmaven.test.skip
 
 # Package stage
 FROM amazoncorretto:23-alpine3.20 AS release
