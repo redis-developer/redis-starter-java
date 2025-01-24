@@ -35,6 +35,7 @@ import org.springframework.test.context.support.AnnotationConfigContextLoader;
 import io.redis.todoapp.components.todos.TodoRepository;
 import io.redis.todoapp.components.todos.models.CreateTodoDto;
 import io.redis.todoapp.components.todos.models.UpdateTodoDto;
+import io.redis.todoapp.util.GsonConfiguration;
 
 @SpringBootTest
 @TestInstance(Lifecycle.PER_CLASS)
