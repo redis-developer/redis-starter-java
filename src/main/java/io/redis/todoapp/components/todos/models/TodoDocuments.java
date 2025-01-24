@@ -21,6 +21,12 @@ public class TodoDocuments {
 
     @Override
     public String toString() {
-        return "TodoDocuments [total=" + total + "]";
+        String str = String.format("TodoDocuments[total=%s]", total);
+
+        for (var doc : documents) {
+            str = String.format("%s\n    %s", str, doc);
+        }
+
+        return str;
     }
 }

@@ -16,7 +16,6 @@
 	<description>A starter project for working with Redis and Java</description>
 	<properties>
 		<java.version>17</java.version>
-		<jedis.version>5.2.0</jedis.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -33,7 +32,6 @@
 		<dependency>
 			<groupId>redis.clients</groupId>
 			<artifactId>jedis</artifactId>
-			<version>${jedis.version}</version>
 		</dependency>
 
 		<dependency>

@@ -1,34 +1,38 @@
 package io.redis.todoapp.components.todos;
 
+import java.lang.invoke.MethodHandles;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.gson.GsonBuilderCustomizer;
 import org.springframework.stereotype.Repository;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 
+import io.redis.todoapp.components.todos.models.CreateTodoDto;
 import io.redis.todoapp.components.todos.models.Todo;
 import io.redis.todoapp.components.todos.models.TodoDocument;
 import io.redis.todoapp.components.todos.models.TodoDocuments;
+import io.redis.todoapp.components.todos.models.UpdateTodoDto;
 import jakarta.annotation.PostConstruct;
 import redis.clients.jedis.UnifiedJedis;
 import redis.clients.jedis.search.FTCreateParams;
 import redis.clients.jedis.search.IndexDataType;
+import redis.clients.jedis.search.SearchResult;
 import redis.clients.jedis.search.schemafields.SchemaField;
 import redis.clients.jedis.search.schemafields.TextField;
 
 @Repository
 public class TodoRepository {
+    private final static Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     public static final String TODOS_INDEX = "todos-idx";
     public static final String TODOS_PREFIX = "todos:";
 
     @Autowired
-    private GsonBuilderCustomizer gsonCustomizer;
-
     private Gson gson;
 
     @Autowired
@@ -36,11 +40,15 @@ public class TodoRepository {
 
     @PostConstruct
     public void init() {
-        var gsonBuilder = new GsonBuilder();
-        gsonCustomizer.customize(gsonBuilder);
-        gson = gsonBuilder.create();
-
         this.createIndexIfNotExists();
+    }
+
+    private String formatId(String id) {
+        if (id.matches("^" + TODOS_PREFIX + ".*")) {
+            return id;
+        }
+
+        return TODOS_PREFIX + id;
     }
 
     private boolean haveIndex() {
@@ -66,31 +74,121 @@ public class TodoRepository {
         );
     }
 
-    public TodoDocuments all() {
-        var result = redis.ftSearch(TODOS_INDEX, "*");
+    public void dropIndex() {
+        if (!haveIndex()) {
+            return;
+        }
+
+        redis.ftDropIndex(TODOS_INDEX);
+    }
+
+    private TodoDocuments toTodoDocuments(SearchResult result) {
         var total = result.getTotalResults();
         var documents = result.getDocuments();
         List<TodoDocument> todos = new ArrayList<>();
 
+        logger.debug("found " + documents.size() + " documents");
         for (var doc : documents) {
-            var name = doc.getString("name");
-            var status = doc.getString("status");
-            var createdDate = doc.getString("created_date");
-            var updatedDate = doc.getString("updated_date");
-            var todo = new Todo(name, status, createdDate, updatedDate);
+            var todo = jsonToTodo(doc.get("$"));
             todos.add(new TodoDocument(doc.getId(), todo));
         }
 
-        return new TodoDocuments(total, todos);
+        var todoDocuments = new TodoDocuments(total, todos);
+
+        logger.debug(String.format("\n%s\n", todoDocuments.toString()));
+
+        return todoDocuments;
+    }
+
+    public TodoDocuments all() {
+        var result = redis.ftSearch(TODOS_INDEX, "*");
+        return toTodoDocuments(result);
+    }
+
+    public TodoDocuments search(String name, String status) {
+        List<String> searches = new ArrayList<>();
+
+        if (name != null) {
+            searches.add(String.format("@name:(%s)", name));
+        }
+
+        if (status != null) {
+            searches.add(String.format("@status:%s", status));
+        }
+
+        var result = redis.ftSearch(TODOS_INDEX, String.join(" ", searches));
+
+        return toTodoDocuments(result);
+    }
+
+    public TodoDocument create(CreateTodoDto todoDto) {
+        todoDto.setId(formatId(todoDto.getId()));
+        var todoDocument = todoDto.toTodoDocument();
+        var ok = redis.jsonSet(todoDocument.getId(), gson.toJson(todoDocument.getValue()));
+
+        logger.debug(String.format("jsonSet(%s, %s) == %s", todoDocument.getId(), todoDocument.getValue(), ok));
+
+        if (ok.equals("ok")) {
+            logger.debug(String.format("Todo created: %s", todoDocument));
+            return todoDocument;
+        }
+
+        return todoDocument;
+    }
+
+    public Todo update(String id, UpdateTodoDto todoDto) {
+        var status = todoDto.getStatus();
+        switch (status) {
+            case "todo", "in progress", "complete" -> {
+            }
+            default -> throw new AssertionError(String.format("invalid status %s", status));
+        }
+
+        id = formatId(id);
+        var todo = one(id);
+        todo.setStatus(status);
+        todo.setUpdatedDate(Instant.now());
+        var ok = redis.jsonSet(id, gson.toJson(todo));
+    
+        if (ok.equals("ok")) {
+            logger.debug(String.format("Todo updated: %s", todo));
+            return todo;
+        }
+
+        return todo;
     }
 
     public Todo one(String id) {
-        var result = redis.jsonGet(id);
+        var result = redis.jsonGet(formatId(id));
 
         return jsonToTodo(result);
     }
 
+    public void delete(String id) {
+        redis.jsonDel(formatId(id));
+    }
+
+    public void deleteAll() {
+        var todos = all();
+
+        if (todos.getTotal() <= 0) {
+            return;
+        }
+
+        List<String> ids = new ArrayList<>();
+        
+        for (var doc: todos.getDocuments()) {
+            ids.add(doc.getId());
+        }
+
+        redis.del(ids.toArray(String[]::new));
+    }
+
     private Todo jsonToTodo(Object obj) {
+        if (obj instanceof String string) {
+            return gson.fromJson(string, Todo.class);
+        }
+
         var json = gson.toJson(obj);
         return gson.fromJson(json, Todo.class);
     }

@@ -19,6 +19,6 @@ public class TodoDocument {
 
     @Override
     public String toString() {
-        return "TodoDocument [id=" + id + ", value=" + value.toString() + "]";
+        return String.format("TodoDocument[id=%s,value=%s]", id, value);
     }
 }

@@ -2,22 +2,21 @@ package io.redis.todoapp;
 
 import java.time.Instant;
 
-import org.springframework.boot.autoconfigure.gson.GsonBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import io.redis.todoapp.util.Gson_InstantTypeAdapter;
 
 @Configuration
 public class GsonConfiguration {
-    @Primary
     @Bean
-    public GsonBuilderCustomizer typeAdapterRegistration() {
-        return builder -> {
-            builder
+    public Gson getGson() {
+        return new GsonBuilder()
                 .registerTypeAdapter(Instant.class, new Gson_InstantTypeAdapter())
-                .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'");
-        };
+                .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'")
+                .create();
     }
 }

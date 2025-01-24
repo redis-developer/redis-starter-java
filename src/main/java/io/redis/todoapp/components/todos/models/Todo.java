@@ -12,10 +12,10 @@ public class Todo {
     private String status;
 
     @SerializedName("created_date")
-    public Instant createdDate;
+    private Instant createdDate;
 
     @SerializedName("updated_date")
-    public Instant updatedDate;
+    private Instant updatedDate;
 
     public Todo() {
         this.status = "todo";
@@ -85,6 +85,6 @@ public class Todo {
 
     @Override
     public String toString() {
-        return "Todo [name=" + name + ", status=" + status + "]";
+        return String.format("Todo [name=%s, status=%s, created=%s, updated=%s]", name, status, createdDate, updatedDate);
     }
 }
