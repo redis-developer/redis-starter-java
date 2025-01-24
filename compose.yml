@@ -1,0 +1,28 @@
+name: "redis-starter-java"
+services:
+  redis:
+    container_name: redis
+    image: "redis:8.0-M02"
+    ports:
+      - 6379:6379
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    volumes:
+      - redis-data:/data
+
+  server:
+    container_name: server
+    build: .
+    ports:
+      - 8080:8080
+    env_file:
+      - ./.env
+      - ./.env.docker
+    restart: always
+    depends_on:
+      - redis
+
+volumes:
+  redis-data:
