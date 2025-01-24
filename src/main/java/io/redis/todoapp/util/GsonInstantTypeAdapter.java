@@ -7,7 +7,7 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
-public class Gson_InstantTypeAdapter extends TypeAdapter<Instant> {
+public class GsonInstantTypeAdapter extends TypeAdapter<Instant> {
 
     @Override
     public void write(JsonWriter jsonWriter, Instant instant) throws IOException {
